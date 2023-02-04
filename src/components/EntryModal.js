@@ -13,7 +13,11 @@ import TextField from '@mui/material/TextField';
 import * as React from 'react';
 import { useState } from 'react';
 import { categories } from '../utils/categories';
-import { addEntry } from '../utils/mutations';
+import { addEntry, updateEntry, deleteEntry } from '../utils/mutations';
+import DeleteIcon from '@mui/icons-material/Delete';
+import SaveIcon from '@mui/icons-material/Save';
+import QrCodeIcon from '@mui/icons-material/QrCode';
+import QRCode from 'qrcode';
 
 // Modal component for individual entries.
 
@@ -35,6 +39,18 @@ export default function EntryModal({ entry, type, user }) {
    const [link, setLink] = useState(entry.link);
    const [description, setDescription] = useState(entry.description);
    const [category, setCategory] = React.useState(entry.category);
+   const [imageUrl, setImageUrl] = useState('');
+   const [QR, setQR] = useState('');
+
+   const generateQrCode = async () => {
+      try {
+         const response = await QRCode.toDataURL(link);
+         setImageUrl(response);
+      }
+      catch (error) {
+         console.log(error);
+      }
+   }
 
    // Modal visibility handlers
 
@@ -66,9 +82,32 @@ export default function EntryModal({ entry, type, user }) {
       handleClose();
    };
 
-   // TODO: Add Edit Mutation Handler
+   // Edit Mutation Handler
+   const handleEdit = () => {
+      const editedEntry = {
+         name: name,
+         link: link,
+         description: description,
+         user: user?.displayName ? user?.displayName : "GenericUser",
+         category: category,
+         userid: user?.uid,
+         id: entry.id
+      };
+      updateEntry(editedEntry).catch(console.error);
+      handleClose();
+   };
 
-   // TODO: Add Delete Mutation Handler
+   // Delete Mutation Handler
+   const handleDelete = () => {
+      deleteEntry(entry).catch(console.error);
+      handleClose();
+   }
+
+   // QR Code Handler
+   const handleQR = () => {
+      generateQrCode();
+      setQR(imageUrl);
+   }
 
    // Button handlers for modal opening and inside-modal actions.
    // These buttons are displayed conditionally based on if adding or editing/opening.
@@ -86,7 +125,11 @@ export default function EntryModal({ entry, type, user }) {
    const actionButtons =
       type === "edit" ?
          <DialogActions>
-            <Button onClick={handleClose}>Cancel</Button>
+            <Button color="primary" onClick={handleClose}>Cancel</Button>
+            <Button variant="contained" color="error" startIcon={<DeleteIcon />} onClick={handleDelete}>
+               Delete</Button>
+            <Button variant="contained" color="success" startIcon={<SaveIcon />} onClick={handleEdit}>
+               Save Changes</Button>
          </DialogActions>
          : type === "add" ?
             <DialogActions>
@@ -94,6 +137,17 @@ export default function EntryModal({ entry, type, user }) {
                <Button variant="contained" onClick={handleAdd}>Add Entry</Button>
             </DialogActions>
             : null;
+   // Require link to generate QR
+   let QRimage;
+   if (!link) {
+      QRimage = <p>must provide link</p>
+   } else {
+      QRimage = <img
+         style={{ width: 200, height: 200 }}
+         src={imageUrl}
+         alt="img"
+      />
+   }
 
    return (
       <div>
@@ -103,21 +157,23 @@ export default function EntryModal({ entry, type, user }) {
             <DialogContent>
                {/* TODO: Feel free to change the properties of these components to implement editing functionality. The InputProps props class for these MUI components allows you to change their traditional CSS properties. */}
                <TextField
+                  required
                   margin="normal"
                   id="name"
                   label="Name"
                   fullWidth
-                  variant="standard"
+                  color="primary"
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                />
                <TextField
+                  required
                   margin="normal"
                   id="link"
                   label="Link"
                   placeholder="e.g. https://google.com"
                   fullWidth
-                  variant="standard"
+                  color="primary"
                   value={link}
                   onChange={(event) => setLink(event.target.value)}
                />
@@ -126,7 +182,7 @@ export default function EntryModal({ entry, type, user }) {
                   id="description"
                   label="Description"
                   fullWidth
-                  variant="standard"
+                  color='primary'
                   multiline
                   maxRows={8}
                   value={description}
@@ -146,6 +202,37 @@ export default function EntryModal({ entry, type, user }) {
                   </Select>
                </FormControl>
             </DialogContent>
+            {QR ? (
+               <div
+                  style={{
+                     display: 'grid',
+                     alignItems: 'center',
+                     justifyContent: 'center',
+                  }}
+               >
+                  {QRimage}
+               </div>
+            ) : (
+               <DialogActions>
+                  <Button variant="contained" size="medium" startIcon={<QrCodeIcon />} onClick={handleQR}>
+                     Generate QR Code
+                  </Button>
+               </DialogActions>
+            )}
+            {QR ? (
+               <div
+                  style={{
+                     display: 'grid',
+                     alignItems: 'center',
+                     justifyContent: 'center',
+                  }}
+               >
+                  <img scr={QR} />
+                  <DialogActions>
+                     <Button href={QR} download="qrcode.png" variant="contained" size="medium" startIcon={<QrCodeIcon />} onClick={handleQR}> Download </Button>
+                  </DialogActions>
+               </div>
+            ) : null}
             {actionButtons}
          </Dialog>
       </div>
